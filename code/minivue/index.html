@@ -1,0 +1,39 @@
+<html>
+
+<head>
+
+</head>
+
+<body>
+  <div id="app">
+    <h1>插值表达式</h1>
+    <div>{{msg}}</div>
+    <div>{{count}}</div>
+    <h1>指令</h1>
+    <div v-text="msg" v-on:click="() => alert('clicked')"></div>
+    <div v-html="html" v-on:click="clickHandler"></div>
+    <input v-model="count"></input>
+  </div>
+  <script src='./js/dep.js'></script>
+  <script src='./js/watcher.js'></script>
+  <script src='./js/compiler.js'></script>
+  <script src='./js/observer.js'></script>
+  <script src='./js/vue.js'></script>
+  <script>
+    let vm = new Vue({
+      el: '#app',
+      data: {
+        html: '<p style="color: blue">I\'m HTML string</p>',
+        msg: 'hello',
+        count: 10
+      },
+      methods: {
+        clickHandler() {
+          alert('clicked in method')
+        }
+      }
+    })
+  </script>
+</body>
+
+</html>
