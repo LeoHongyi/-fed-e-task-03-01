@@ -27,6 +27,8 @@ from reportlab.pdfgen import canvas
 
 
 PDF_FONT = "STSong-Light"  # built-in CID font (supports Chinese)
+EN_FONT = "Helvetica"
+EN_FONT_BOLD = "Helvetica-Bold"
 
 
 @dataclass(frozen=True)
@@ -58,6 +60,11 @@ def draw_label(c: canvas.Canvas, text: str, x: float, y: float, size: int = 9) -
     c.drawString(x, y, text)
 
 
+def draw_label_en(c: canvas.Canvas, text: str, x: float, y: float, size: int = 9, bold: bool = False) -> None:
+    c.setFont(EN_FONT_BOLD if bold else EN_FONT, size)
+    c.drawString(x, y, text)
+
+
 def draw_field(
     c: canvas.Canvas,
     label: str,
@@ -80,6 +87,24 @@ def draw_field(
         c.drawString(b.x + padding, b.y + b.h - value_size - 2, value)
 
 
+def draw_field_en(
+    c: canvas.Canvas,
+    label: str,
+    b: Box,
+    value: str = "",
+    label_size: int = 8,
+    value_size: int = 9,
+    padding: float = 3,
+) -> None:
+    """English labeled field."""
+
+    draw_label_en(c, label, b.x, b.y + b.h + 2, size=label_size, bold=False)
+    draw_box(c, b)
+    if value:
+        c.setFont(EN_FONT, value_size)
+        c.drawString(b.x + padding, b.y + b.h - value_size - 2, value)
+
+
 def draw_checkbox(c: canvas.Canvas, label: str, x: float, y: float, checked: bool = False) -> None:
     size = 9
     box = Box(x, y, 10, 10)
@@ -89,6 +114,17 @@ def draw_checkbox(c: canvas.Canvas, label: str, x: float, y: float, checked: boo
         c.line(x + 2, y + 5, x + 4, y + 2)
         c.line(x + 4, y + 2, x + 8, y + 9)
     draw_label(c, label, x + 14, y + 2, size=size)
+
+
+def draw_checkbox_en(c: canvas.Canvas, label: str, x: float, y: float, checked: bool = False) -> None:
+    size = 8
+    box = Box(x, y, 10, 10)
+    draw_box(c, box, lw=0.8)
+    if checked:
+        c.setLineWidth(1.2)
+        c.line(x + 2, y + 5, x + 4, y + 2)
+        c.line(x + 4, y + 2, x + 8, y + 9)
+    draw_label_en(c, label, x + 14, y + 2, size=size, bold=False)
 
 
 def draw_hline(c: canvas.Canvas, x1: float, x2: float, y: float, lw: float = 0.8) -> None:
@@ -179,6 +215,15 @@ def draw_footer(c: canvas.Canvas, page_no: int, total_pages: int) -> None:
     c.drawRightString(w - margin, margin * 0.7, f"打印时间：{dt}")
 
 
+def draw_footer_en(c: canvas.Canvas, page_no: int, total_pages: int) -> None:
+    w, _h = A4
+    margin = 15 * mm
+    c.setFont(EN_FONT, 8)
+    dt = datetime.now().strftime("%Y-%m-%d %H:%M")
+    c.drawString(margin, margin * 0.7, f"Page {page_no} / {total_pages}")
+    c.drawRightString(w - margin, margin * 0.7, f"Generated: {dt}")
+
+
 def draw_header(c: canvas.Canvas, page_no: int, total_pages: int) -> None:
     w, h = A4
     margin = 15 * mm
@@ -195,6 +240,519 @@ def draw_header(c: canvas.Canvas, page_no: int, total_pages: int) -> None:
     # meta line
     c.setFont(PDF_FONT, 9)
     c.drawString(margin, h - margin - 22, "用途：对账/开票/付款申请；请用黑色签字笔填写，金额单位：人民币（元）")
+
+
+def draw_header_en(c: canvas.Canvas, page_no: int, total_pages: int) -> None:
+    w, h = A4
+    margin = 15 * mm
+
+    c.setFont(EN_FONT_BOLD, 16)
+    c.drawString(margin, h - margin - 2, "Tenant Billing Statement (Complex Form)")
+
+    c.setFont(EN_FONT, 9)
+    c.drawRightString(w - margin, h - margin + 2, "For reconciliation / invoicing / payment request")
+
+    draw_hline(c, margin, w - margin, h - margin - 8, lw=1.0)
+
+    c.setFont(EN_FONT, 9)
+    c.drawString(
+        margin,
+        h - margin - 22,
+        "Please fill in with black ink. Currency: CNY (RMB). See pages 2–4 for details; terms on page 5.",
+    )
+
+
+def money(v: float) -> str:
+    return f"{v:,.2f}"
+
+
+def generate_mock_data() -> dict:
+    # Realistic but fictional sample data
+    return {
+        "invoice_no": "TB-2025-EN-001",
+        "billing_period": "2025-12-01 to 2025-12-31",
+        "issue_date": "2025-12-12",
+        "currency": "CNY",
+        "payee": "Greenfield Property Management Co., Ltd.",
+        "payer": "Acme Robotics (Shanghai) Co., Ltd.",
+        "property_address": "No. 88 Innovation Rd, Pudong, Shanghai",
+        "unit": "Tower B · Suite 1203",
+        "payment_due": "2026-01-05",
+        "bank_name": "Bank of China, Shanghai Pudong Branch",
+        "bank_account_name": "Greenfield Property Management Co., Ltd.",
+        "bank_account_no": "6222 0000 1234 5678 901",
+        "swift": "BKCHCNBJ300",
+        "payment_ref": "TB-2025-EN-001 / Acme Robotics",
+        "contacts": {
+            "payee_contact": "Lily Chen",
+            "payee_email": "billing@greenfield.example",
+            "payee_phone": "+86 21 5555 0123",
+            "payer_contact": "Michael Brown",
+            "payer_email": "ap@acmerobotics.example",
+            "payer_phone": "+86 21 5555 0456",
+        },
+        "invoice_info": {
+            "legal_name": "Acme Robotics (Shanghai) Co., Ltd.",
+            "tax_id": "91310000MA1KXXXXXX",
+            "address_phone": "No. 99 Finance Ave, Shanghai / +86 21 5555 0789",
+            "bank": "ICBC Shanghai Branch / 1022 0000 9876 5432 10",
+        },
+        "deliver_to": "ap@acmerobotics.example (PDF invoice preferred)",
+        "lease_area_sqm": "168.5",
+        "parking_spots": "1",
+        "parking_fee": 800.00,
+        "access_cards": "3",
+        "access_deposit": 300.00,
+        "other_deposit": 0.00,
+        "deposit_refund_or_deduction": 0.00,
+    }
+
+
+def page_en_1(c: canvas.Canvas, d: dict) -> None:
+    w, h = A4
+    margin = 15 * mm
+    y = h - margin - 40
+
+    draw_label_en(c, "1. Basic information", margin, y + 10, size=11, bold=True)
+
+    block_h = 95
+    draw_box(c, Box(margin, y - block_h, w - 2 * margin, block_h), lw=1.0)
+
+    left = margin + 6
+    top = y - 10
+
+    col_w = (w - 2 * margin - 18) / 2
+    row_h = 18
+
+    fields = [
+        ("Invoice No.", d["invoice_no"]),
+        ("Billing period", d["billing_period"]),
+        ("Issue date", d["issue_date"]),
+        ("Currency", d["currency"]),
+        ("Payee (landlord/PM)", d["payee"]),
+        ("Payer (tenant)", d["payer"]),
+        ("Property address", d["property_address"]),
+        ("Unit", d["unit"]),
+    ]
+
+    for i, (label, value) in enumerate(fields):
+        col = i % 2
+        row = i // 2
+        x = left + col * (col_w + 6)
+        y_field_top = top - row * row_h
+        draw_field_en(c, label, Box(x, y_field_top - row_h + 2, col_w, row_h - 6), value=value)
+
+    y2 = y - block_h - 25
+    draw_label_en(c, "2. Summary (amounts in CNY)", margin, y2 + 10, size=11, bold=True)
+
+    sum_h = 90
+    draw_box(c, Box(margin, y2 - sum_h, w - 2 * margin, sum_h), lw=1.0)
+
+    # Pre-compute totals from the same mock tables used on later pages
+    charges_subtotal = 24500.00 + 1500.00 + 320.00 + 260.00 + 180.00
+    vat = round(charges_subtotal * 0.06, 2)  # example VAT 6%
+    gross = charges_subtotal + vat
+    received = 10000.00
+    carryover = -500.00  # credit
+    adjustment = -300.00  # discount
+    closing = gross - received + carryover + adjustment
+
+    x = margin + 6
+    y_top = y2 - 10
+    col_w3 = (w - 2 * margin - 18) / 3
+    row_h2 = 22
+
+    sum_fields = [
+        ("Charges subtotal", money(charges_subtotal)),
+        ("Tax (VAT 6%)", money(vat)),
+        ("Gross due", money(gross)),
+        ("Amount received", money(received)),
+        ("Carryover (credit/arrears)", money(carryover)),
+        ("Adjustments (discount/true-up)", money(adjustment)),
+        ("Closing balance (payable/refundable)", money(closing)),
+        ("Payment due date", d["payment_due"]),
+        ("Payment reference", d["payment_ref"]),
+    ]
+
+    for i, (label, value) in enumerate(sum_fields):
+        col = i % 3
+        row = i // 3
+        bx = x + col * (col_w3 + 6)
+        by = y_top - row * row_h2
+        draw_field_en(c, label, Box(bx, by - row_h2 + 2, col_w3, row_h2 - 6), value=value)
+
+    y3 = y2 - sum_h - 25
+    draw_label_en(c, "3. Payment information", margin, y3 + 10, size=11, bold=True)
+
+    pay_h = 140
+    draw_box(c, Box(margin, y3 - pay_h, w - 2 * margin, pay_h), lw=1.0)
+
+    left = margin + 6
+    top = y3 - 10
+
+    draw_label_en(c, "Payment method (select one):", left, top, size=9, bold=False)
+    cb_y = top - 16
+    draw_checkbox_en(c, "Bank transfer", left, cb_y, checked=True)
+    draw_checkbox_en(c, "Cash", left + 110, cb_y, checked=False)
+    draw_checkbox_en(c, "Alipay", left + 190, cb_y, checked=False)
+    draw_checkbox_en(c, "WeChat", left + 270, cb_y, checked=False)
+    draw_checkbox_en(c, "Cheque", left + 350, cb_y, checked=False)
+
+    bank_top = cb_y - 20
+    col_w2 = (w - 2 * margin - 18) / 2
+    row_h3 = 20
+
+    bank_fields = [
+        ("Account name", d["bank_account_name"]),
+        ("Bank", d["bank_name"]),
+        ("Account number", d["bank_account_no"]),
+        ("SWIFT / routing (if any)", d["swift"]),
+        ("Payment reference (memo)", d["payment_ref"]),
+        ("Due date", d["payment_due"]),
+    ]
+
+    for i, (label, value) in enumerate(bank_fields):
+        col = i % 2
+        row = i // 2
+        bx = left + col * (col_w2 + 6)
+        by = bank_top - row * row_h3
+        draw_field_en(c, label, Box(bx, by - row_h3 + 2, col_w2, row_h3 - 6), value=value)
+
+    note_y = y3 - pay_h + 10
+    c.setFont(EN_FONT, 8)
+    c.drawString(
+        margin + 8,
+        note_y,
+        "Note: This page is a summary. Line-item details are on pages 2–4; terms & attachments on page 5.",
+    )
+
+
+def page_en_2(c: canvas.Canvas, d: dict) -> None:
+    w, h = A4
+    margin = 15 * mm
+    y = h - margin - 40
+    draw_label_en(c, "4. Charges detail (rent / management fee / other)", margin, y + 10, size=11, bold=True)
+
+    x = margin
+    y_top = y - 5
+
+    col_widths = [
+        18 * mm,  # Date
+        33 * mm,  # Item
+        28 * mm,  # Period
+        14 * mm,  # Qty
+        18 * mm,  # Unit price
+        14 * mm,  # Tax
+        22 * mm,  # Amount
+        28 * mm,  # Notes
+    ]
+    header = ["Date", "Item", "Billing period", "Qty", "Unit", "Tax", "Amount", "Notes"]
+
+    line_items = [
+        ("2025-12-01", "Base rent", "Dec 2025", "1", "24,500.00", "6%", "24,500.00", "Per lease"),
+        ("2025-12-01", "Property mgmt fee", "Dec 2025", "1", "1,500.00", "6%", "1,500.00", "Monthly"),
+        ("2025-12-01", "Cleaning service", "Dec 2025", "1", "320.00", "6%", "320.00", "Common area"),
+        ("2025-12-01", "Minor repair", "WO#R-2198", "1", "260.00", "6%", "260.00", "Invoice attached"),
+        ("2025-12-01", "Insurance surcharge", "Dec 2025", "1", "180.00", "0%", "180.00", "Non-taxable"),
+    ]
+
+    rows = [list(r) for r in line_items]
+    # pad to 15 rows to keep layout stable
+    while len(rows) < 15:
+        rows.append(["", "", "", "", "", "", "", ""])
+
+    y_bottom = draw_table(c, x, y_top, col_widths, row_h=16, rows=rows, header=header, font_size=7)
+
+    charges_subtotal = 24500.00 + 1500.00 + 320.00 + 260.00 + 180.00
+    vat = round((24500.00 + 1500.00 + 320.00 + 260.00) * 0.06, 2)  # last line non-taxable
+    gross = charges_subtotal + vat
+
+    y2 = y_bottom - 25
+    draw_label_en(c, "Subtotal & notes", margin, y2 + 10, size=11, bold=True)
+
+    box_h = 120
+    draw_box(c, Box(margin, y2 - box_h, w - 2 * margin, box_h), lw=1.0)
+
+    left = margin + 6
+    top = y2 - 12
+
+    draw_field_en(c, "Charges subtotal", Box(left, top - 18, 70 * mm, 14), value=money(charges_subtotal))
+    draw_field_en(c, "Tax subtotal", Box(left + 75 * mm, top - 18, 60 * mm, 14), value=money(vat))
+    draw_field_en(c, "Gross total", Box(left + 140 * mm, top - 18, 45 * mm, 14), value=money(gross))
+
+    text_box = Box(left, y2 - box_h + 12, w - 2 * margin - 12, 70)
+    draw_label_en(
+        c,
+        "Notes (payment purpose, discounts, contract clause reference, etc.):",
+        text_box.x,
+        text_box.y + text_box.h + 6,
+        size=9,
+        bold=False,
+    )
+    draw_box(c, text_box)
+    c.setFont(EN_FONT, 8)
+    c.drawString(text_box.x + 4, text_box.y + text_box.h - 14, "Discount applied: CNY 300.00 (Service goodwill).")
+    c.drawString(text_box.x + 4, text_box.y + text_box.h - 28, "Carryover credit from last period: CNY 500.00.")
+
+
+def page_en_3(c: canvas.Canvas, d: dict) -> None:
+    w, h = A4
+    margin = 15 * mm
+    y = h - margin - 40
+    draw_label_en(c, "5. Utilities (metering / allocation)", margin, y + 10, size=11, bold=True)
+
+    x = margin
+    y_top = y - 5
+
+    col_widths = [
+        30 * mm,  # Utility
+        22 * mm,  # Meter ID
+        20 * mm,  # Prev
+        20 * mm,  # Curr
+        18 * mm,  # Usage
+        18 * mm,  # Unit
+        20 * mm,  # Amount
+        32 * mm,  # Rule/notes
+    ]
+    header = ["Utility", "Meter ID", "Prev", "Curr", "Usage", "Unit", "Amount", "Rule / notes"]
+
+    utility_rows = [
+        ["Electricity", "E-1203", "12,480", "12,760", "280", "1.10", money(308.00), "kWh x rate"],
+        ["Water", "W-1203", "3,120", "3,160", "40", "6.50", money(260.00), "m³ x rate"],
+        ["Gas", "—", "—", "—", "—", "—", money(0.00), "Not applicable"],
+        ["HVAC", "—", "—", "—", "—", "—", money(0.00), "Included in rent"],
+        ["Internet", "—", "—", "—", "1", "180.00", money(180.00), "Monthly"],
+        ["Waste disposal", "—", "—", "—", "1", "120.00", money(120.00), "Monthly"],
+        ["Common area allocation", "—", "—", "—", "—", "—", money(0.00), "N/A this period"],
+        ["Other", "", "", "", "", "", "", ""],
+    ]
+
+    y_bottom = draw_table(c, x, y_top, col_widths, row_h=18, rows=utility_rows, header=header, font_size=7)
+
+    y2 = y_bottom - 20
+    draw_label_en(c, "Allocation method (if applicable):", margin, y2 + 6, size=10, bold=False)
+
+    cb_y = y2 - 14
+    draw_checkbox_en(c, "By leased area (sqm)", margin + 2, cb_y, checked=True)
+    draw_field_en(c, "Leased area", Box(margin + 120, cb_y - 2, 40 * mm, 12), value=d["lease_area_sqm"])
+
+    cb_y2 = cb_y - 16
+    draw_checkbox_en(c, "By headcount", margin + 2, cb_y2, checked=False)
+    draw_field_en(c, "Headcount", Box(margin + 120, cb_y2 - 2, 30 * mm, 12), value="")
+
+    cb_y3 = cb_y2 - 16
+    draw_checkbox_en(c, "By seats/equipment", margin + 2, cb_y3, checked=False)
+    draw_field_en(c, "Qty", Box(margin + 120, cb_y3 - 2, 30 * mm, 12), value="")
+
+    cb_y4 = cb_y3 - 16
+    draw_checkbox_en(c, "Independent metering", margin + 2, cb_y4, checked=True)
+
+    cb_y5 = cb_y4 - 16
+    draw_checkbox_en(c, "Other", margin + 2, cb_y5, checked=False)
+    draw_field_en(c, "Details", Box(margin + 70, cb_y5 - 2, w - 2 * margin - 80, 12), value="")
+
+    y3 = cb_y5 - 30
+    draw_label_en(c, "6. Parking / access / deposits (if applicable)", margin, y3 + 10, size=11, bold=True)
+
+    box_h = 130
+    draw_box(c, Box(margin, y3 - box_h, w - 2 * margin, box_h), lw=1.0)
+
+    left = margin + 6
+    top = y3 - 12
+    col_w = (w - 2 * margin - 18) / 2
+    row_h = 20
+
+    fields = [
+        ("Parking spots", d["parking_spots"]),
+        ("Parking fee", money(d["parking_fee"])),
+        ("Access cards", d["access_cards"]),
+        ("Access card deposit", money(d["access_deposit"])),
+        ("Other deposit / guarantee", money(d["other_deposit"])),
+        ("Refund / deduction this period", money(d["deposit_refund_or_deduction"])),
+    ]
+
+    for i, (label, value) in enumerate(fields):
+        col = i % 2
+        row = i // 2
+        bx = left + col * (col_w + 6)
+        by = top - row * row_h
+        draw_field_en(c, label, Box(bx, by - row_h + 2, col_w, row_h - 6), value=value)
+
+
+def page_en_4(c: canvas.Canvas, d: dict) -> None:
+    w, h = A4
+    margin = 15 * mm
+    y = h - margin - 40
+    draw_label_en(c, "7. Payments & reconciliation (received / credits / discounts / late fees)", margin, y + 10, size=11, bold=True)
+
+    x = margin
+    y_top = y - 5
+
+    col_widths = [
+        22 * mm,  # Date
+        35 * mm,  # Type
+        26 * mm,  # Amount
+        34 * mm,  # Channel/Ref
+        28 * mm,  # Applied to
+        35 * mm,  # Notes
+    ]
+    header = ["Date", "Type", "Amount", "Channel / ref", "Applied to", "Notes"]
+
+    tx_rows = [
+        ["2025-12-05", "Payment received", money(6000.00), "Bank / TRX-88421", "Dec 2025", "Partial payment"],
+        ["2025-12-20", "Payment received", money(4000.00), "Bank / TRX-90117", "Dec 2025", "Partial payment"],
+        ["2025-11-30", "Carryover credit", money(-500.00), "N/A", "Nov 2025", "Overpayment"],
+        ["2025-12-12", "Discount / adjustment", money(-300.00), "Approval#D-118", "Dec 2025", "Goodwill"],
+        ["", "", "", "", "", ""],
+        ["", "", "", "", "", ""],
+        ["", "", "", "", "", ""],
+        ["", "", "", "", "", ""],
+        ["", "", "", "", "", ""],
+        ["", "", "", "", "", ""],
+        ["", "", "", "", "", ""],
+        ["", "", "", "", "", ""],
+        ["", "", "", "", "", ""],
+        ["", "", "", "", "", ""],
+    ]
+
+    y_bottom = draw_table(c, x, y_top, col_widths, row_h=18, rows=tx_rows, header=header, font_size=7)
+
+    charges_subtotal = 24500.00 + 1500.00 + 320.00 + 260.00 + 180.00
+    vat = round(charges_subtotal * 0.06, 2)
+    gross = charges_subtotal + vat
+    received = 10000.00
+    carryover = -500.00
+    adjustment = -300.00
+    outstanding = gross - received + carryover + adjustment
+
+    y2 = y_bottom - 25
+    draw_label_en(c, "Reconciliation result", margin, y2 + 10, size=11, bold=True)
+
+    box_h = 170
+    draw_box(c, Box(margin, y2 - box_h, w - 2 * margin, box_h), lw=1.0)
+
+    left = margin + 6
+    top = y2 - 12
+    draw_field_en(c, "Gross due (this period)", Box(left, top - 18, 60 * mm, 14), value=money(gross))
+    draw_field_en(c, "Paid / received", Box(left + 66 * mm, top - 18, 55 * mm, 14), value=money(received))
+    draw_field_en(c, "Outstanding (payable/refundable)", Box(left + 127 * mm, top - 18, 55 * mm, 14), value=money(outstanding))
+
+    qr = Box(w - margin - 55 * mm, y2 - box_h + 75, 50 * mm, 50 * mm)
+    draw_label_en(c, "Payment QR (optional)", qr.x, qr.y + qr.h + 6, size=9, bold=False)
+    draw_box(c, qr)
+    c.setFont(EN_FONT_BOLD, 10)
+    c.drawCentredString(qr.x + qr.w / 2, qr.y + qr.h / 2, "PAY")
+
+    confirm = Box(left, y2 - box_h + 75, w - 2 * margin - 12 - 55 * mm - 8, 80)
+    draw_label_en(c, "Explanation (differences, justifications, required documents):", confirm.x, confirm.y + confirm.h + 6, size=9, bold=False)
+    draw_box(c, confirm)
+    c.setFont(EN_FONT, 8)
+    c.drawString(confirm.x + 4, confirm.y + confirm.h - 14, "No discrepancies reported. Discount and credit applied as noted.")
+
+    sig_y = y2 - box_h + 12
+    draw_label_en(c, "Sign-off:", left, sig_y + 38, size=9, bold=False)
+    draw_field_en(c, "Payee authorized signature", Box(left, sig_y, 75 * mm, 30), value="Lily Chen")
+    draw_field_en(c, "Payer authorized signature", Box(left + 83 * mm, sig_y, 75 * mm, 30), value="Michael Brown")
+    draw_field_en(c, "Date", Box(left + 166 * mm, sig_y, 30 * mm, 30), value="2025-12-12")
+
+
+def page_en_5(c: canvas.Canvas, d: dict) -> None:
+    w, h = A4
+    margin = 15 * mm
+    y = h - margin - 40
+    draw_label_en(c, "8. Terms, attachments & contacts", margin, y + 10, size=11, bold=True)
+
+    terms_h = 280
+    terms = Box(margin, y - terms_h, w - 2 * margin, terms_h)
+    draw_box(c, terms, lw=1.0)
+
+    tx = terms.x + 6
+    ty = terms.y + terms_h - 14
+
+    draw_label_en(c, "Terms summary (sample — adjust per your lease/legal requirements):", tx, ty, size=9, bold=True)
+    lines = [
+        "1) This statement is issued under the lease agreement. The lease, addenda and valid supporting documents prevail.",
+        "2) Payment shall be made by the due date. Late fees/penalties may apply as stipulated in the lease (if applicable).",
+        "3) Billing disputes must be raised in writing within 3 business days of receipt, with supporting evidence; otherwise deemed accepted.",
+        "4) Metered utilities are based on readings and the applicable rate; allocated charges follow the published allocation basis and data.",
+        "5) For invoicing, please provide complete invoice details (legal name, tax ID, address/phone, bank info) and comply with tax rules.",
+        "6) This form contains business/personal information and must be handled confidentially and used only for lease settlement purposes.",
+    ]
+
+    text = c.beginText(tx, ty - 16)
+    text.setFont(EN_FONT, 8)
+    text.setLeading(12)
+    for ln in lines:
+        text.textLine(ln)
+    c.drawText(text)
+
+    att_y = terms.y - 25
+    draw_label_en(c, "Attachments checklist (tick what is provided):", margin, att_y + 10, size=11, bold=True)
+
+    box_h = 120
+    att = Box(margin, att_y - box_h, w - 2 * margin, box_h)
+    draw_box(c, att, lw=1.0)
+
+    x0 = margin + 8
+    y0 = att_y - 20
+    items = [
+        "Lease agreement / addendum (key pages)",
+        "Prior bill & reconciliation sign-off",
+        "Meter photos / meter log",
+        "Allocation detail (published sheet)",
+        "Work order & acceptance",
+        "Payment receipt / bank slip",
+        "Invoice copy (PDF/e-invoice)",
+        "Other (specify)",
+    ]
+    checked = {0, 2, 5}  # sample checked items
+    for i, it in enumerate(items):
+        col = i % 2
+        row = i // 2
+        draw_checkbox_en(c, it, x0 + col * 250, y0 - row * 18, checked=i in checked)
+
+    y2 = att.y - 25
+    draw_label_en(c, "Contacts", margin, y2 + 10, size=11, bold=True)
+
+    contact_h = 95
+    contact = Box(margin, y2 - contact_h, w - 2 * margin, contact_h)
+    draw_box(c, contact, lw=1.0)
+
+    left = margin + 6
+    top = y2 - 12
+    col_w = (w - 2 * margin - 18) / 2
+    row_h = 20
+
+    fields = [
+        ("Payee contact", d["contacts"]["payee_contact"]),
+        ("Payee phone/email", f'{d["contacts"]["payee_phone"]} / {d["contacts"]["payee_email"]}'),
+        ("Payer contact", d["contacts"]["payer_contact"]),
+        ("Payer phone/email", f'{d["contacts"]["payer_phone"]} / {d["contacts"]["payer_email"]}'),
+        (
+            "Invoice details (legal name / tax ID / address+phone / bank)",
+            f'{d["invoice_info"]["legal_name"]} | {d["invoice_info"]["tax_id"]}',
+        ),
+        ("Delivery (invoice/receipt)", d["deliver_to"]),
+    ]
+    for i, (label, value) in enumerate(fields):
+        col = i % 2
+        row = i // 2
+        bx = left + col * (col_w + 6)
+        by = top - row * row_h
+        draw_field_en(c, label, Box(bx, by - row_h + 2, col_w, row_h - 6), value=value, value_size=8)
+
+    y3 = contact.y - 35
+    draw_label_en(c, "Final confirmation (sign & stamp):", margin, y3 + 10, size=11, bold=True)
+
+    sig_h = 70
+    sig = Box(margin, y3 - sig_h, w - 2 * margin, sig_h)
+    draw_box(c, sig, lw=1.0)
+
+    left = margin + 6
+    top = y3 - 12
+    draw_field_en(c, "Payee signature / stamp", Box(left, top - 45, 85 * mm, 40), value="Greenfield PM (stamp)")
+    draw_field_en(c, "Payer signature / stamp", Box(left + 95 * mm, top - 45, 85 * mm, 40), value="Acme Robotics (stamp)")
+    draw_field_en(c, "Date", Box(left + 190 * mm, top - 45, 20 * mm, 40), value="2025-12-12")
 
 
 def page_1(c: canvas.Canvas) -> None:
@@ -643,6 +1201,41 @@ def generate_pdf(pdf_path: str) -> None:
     c.save()
 
 
+def generate_pdf_filled_en(pdf_path: str) -> None:
+    """Generate an English PDF with filled mock data (5 pages)."""
+
+    # Keep CN font registered for safety; EN uses built-in Helvetica.
+    pdfmetrics.registerFont(UnicodeCIDFont(PDF_FONT))
+    c = canvas.Canvas(pdf_path, pagesize=A4)
+    set_style(c)
+
+    d = generate_mock_data()
+    total_pages = 5
+    pages = [page_en_1, page_en_2, page_en_3, page_en_4, page_en_5]
+
+    for i, fn in enumerate(pages, start=1):
+        draw_header_en(c, i, total_pages)
+        fn(c, d)
+        draw_footer_en(c, i, total_pages)
+        if i != total_pages:
+            c.showPage()
+            set_style(c)
+
+    c.save()
+
+
+def render_first_page_png(pdf_path: str, png_path: str) -> str:
+    import fitz  # PyMuPDF
+
+    doc = fitz.open(pdf_path)
+    mat = fitz.Matrix(2.0, 2.0)
+    page = doc.load_page(0)
+    pix = page.get_pixmap(matrix=mat, alpha=False)
+    pix.save(png_path)
+    doc.close()
+    return png_path
+
+
 def render_pngs(pdf_path: str, out_dir: str) -> list[str]:
     import fitz  # PyMuPDF
 
@@ -670,10 +1263,17 @@ def main() -> None:
     generate_pdf(pdf_path)
     render_pngs(pdf_path, out_dir)
 
+    en_pdf_path = os.path.join(out_dir, "tenant-bill-filled-en-5pages.pdf")
+    generate_pdf_filled_en(en_pdf_path)
+    en_png_path = os.path.join(out_dir, "tenant-bill-filled-en-page-1.png")
+    render_first_page_png(en_pdf_path, en_png_path)
+
     print("Generated:")
     print("-", pdf_path)
     for i in range(1, 6):
         print("-", os.path.join(out_dir, f"tenant-bill-page-{i}.png"))
+    print("-", en_pdf_path)
+    print("-", en_png_path)
 
 
 if __name__ == "__main__":
